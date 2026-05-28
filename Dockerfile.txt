@@ -1,0 +1,34 @@
+# Usa l'immagine ufficiale Python slim per limitare lo spazio occupato
+FROM python:3.10-slim
+
+# Variabili d'ambiente per migliorare le performance di Python
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Installa le dipendenze di sistema necessarie per compilare shapely, rasterio e osmnx
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgdal-dev \
+    gdal-bin \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configura C/C++ in modo che `rasterio` localizzi correttamente le librerie di GDAL
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
+
+# Imposta la Working Directory all'interno del container
+WORKDIR /app
+
+# Copia e installa prima le dipendenze (sfruttando la cache di docker)
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copia l'intero progetto nella Working Directory
+COPY . /app/
+
+# Streamlit utilizza la porta 8501 di default
+EXPOSE 8501
+
+# Avvia l'applicazione Streamlit
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
